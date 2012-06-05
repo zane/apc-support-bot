@@ -1,4 +1,5 @@
 (ns apc-support-bot.core
+  (:use [useful.exception :only [rescue]])
   (:require [clojure.data.json :as json]
             [clojure.java.io :as io]
             [twitter.oauth :as oauth]
@@ -38,14 +39,14 @@
   [message]
   (-> message :user :screen_name))
 
-(def print-mentions-callback 
+(def print-mentions-callback
   (AsyncStreamingCallback.
    (fn [response baos]
-     (let [entity (try (json/read-json (.toString baos))
-                       (catch Exception e nil))]
+     (let [entity (rescue (json/read-json (.toString baos)) nil)]
        (if (mentions? entity (:user-id config))
          (tweet (str "@" (mention-screen-name entity) " "
-                     "Hang in there!"))))) 
+                     (let [responses (:responses config)]
+                       (responses (rand-int (count responses)))))))))
    (comp println handlers/response-return-everything)
    handlers/exception-print))
 
@@ -54,3 +55,5 @@
   (streaming/user-stream :oauth-creds creds
                          :callbacks print-mentions-callback))
 
+(defn -main [& args]
+  (listen))
